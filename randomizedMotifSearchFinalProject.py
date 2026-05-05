@@ -17,7 +17,7 @@ import time
 # CONFIGURATION — edit these values as needed
 # =============================================================================
  
-filePath = "/Users/gabrielacmclemente/Desktop/BioInformatics/GSE306282_4hr_PTBI_DE_Genes.xlsx"
+filePath = "/Users/gabrielacmclemente/bioInfoFinalProject_MM-GC/geneOfInterest.xlsx"
  
 # Filter settings
 # NOTE: Every gene in this file has logFC > 0 (all are upregulated after injury)
