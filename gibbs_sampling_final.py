@@ -13,6 +13,13 @@ import csv
 import math
 
 DNA = "ACGT"
+PROMOTER_FILE = "promoter_sequences.csv"
+
+MOTIF_LENGTH = 8
+GIBBS_ITERATIONS = 100
+NUM_RANDOM_STARTS = 20
+RANDOM_SEED = 0
+PSEUDOCOUNT = 1
 
 
 def profile_matrix(motifs, k, pseudo=0):
@@ -151,9 +158,9 @@ def profile_randomly_generated_kmer(text, k, profile, temperature=1.0):
     return random.choices(kmers, weights=weights, k=1)[0]
 
 
-def gibbs_sampler(Dna, k, t, N, pseudo=1, temperature=1.0, scoring="consensus", track_convergence=False):
+def gibbs_sampler(Dna, k, N, pseudo=1, temperature=1.0, scoring="consensus", track_convergence=False):
     """
-    One run of GibbsSampler(Dna, k, t, N) using pseudocounts.
+    One run of GibbsSampler(Dna, t, N) using pseudocounts.
     """
     t = len(Dna)
     motifs = [random_kmer(s, k) for s in Dna]
@@ -183,7 +190,7 @@ def gibbs_sampler(Dna, k, t, N, pseudo=1, temperature=1.0, scoring="consensus", 
     return best_motifs
 
 
-def repeated_gibbs_sampler(Dna, k, t, N, starts=20, pseudo=1, temperature=1.0, scoring="consensus", seed=None, track_convergence=False):
+def repeated_gibbs_sampler(Dna, k, N, starts=20, pseudo=1, temperature=1.0, scoring="consensus", seed=None, track_convergence=False):
     """
     Run GibbsSampler 20 times (random starts) and return best motifs found.
     """
@@ -197,7 +204,7 @@ def repeated_gibbs_sampler(Dna, k, t, N, starts=20, pseudo=1, temperature=1.0, s
     for _ in range(starts):
         if track_convergence:
             motifs, convergence = gibbs_sampler(
-                Dna, k, t, N,
+                Dna, k, N,
                 pseudo=pseudo,
                 temperature=temperature,
                 scoring=scoring,
@@ -205,7 +212,7 @@ def repeated_gibbs_sampler(Dna, k, t, N, starts=20, pseudo=1, temperature=1.0, s
             )
         else:
             motifs = gibbs_sampler(
-                Dna, k, t, N,
+                Dna, k, N,
                 pseudo=pseudo,
                 temperature=temperature,
                 scoring=scoring
@@ -225,26 +232,37 @@ def repeated_gibbs_sampler(Dna, k, t, N, starts=20, pseudo=1, temperature=1.0, s
     return best_overall
 
 
-def read_problem(filename):
+def read_promoter_sequences(filename):
     """
-    Input format:
-    First line: k t N
-    Then t lines of DNA strings
+    Read promoter sequences from the shared promoter CSV file.
+    The CSV should contain a column named 'sequence'.
     """
-    with open(filename, "r") as f:
-        first_line = f.readline().strip()
-        k, t, N = map(int, first_line.split())
-        Dna = [line.strip() for line in f.readlines()]
-    return k, t, N, Dna
+    sequences = []
+
+    with open(filename, "r", newline="") as csvfile:
+        reader = csv.DictReader(csvfile)
+
+        for row in reader:
+            seq = row["sequence"].strip().upper()
+
+            # Only keep clean DNA sequences
+            if seq and all(base in DNA for base in seq):
+                sequences.append(seq)
+
+    return sequences
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python gibbs_sampling_final.py <input_file>")
-        sys.exit(1)
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        filename = PROMOTER_FILE
+    
 
-    filename = sys.argv[1]
-    k, t, N, Dna = read_problem(filename)
+    Dna = read_promoter_sequences(filename)
+
+    k = MOTIF_LENGTH
+    N = GIBBS_ITERATIONS
 
     experiment_settings = [
         {"temperature": 0.5, "scoring": "consensus"},
@@ -274,18 +292,18 @@ if __name__ == "__main__":
             scoring = setting["scoring"]
 
             best_motifs, convergence = repeated_gibbs_sampler(
-                Dna, k, t, N,
-                starts=20,
-                pseudo=1,
+                Dna, k, N,
+                starts=NUM_RANDOM_STARTS,
+                pseudo=PSEUDOCOUNT,
+                seed=RANDOM_SEED,
                 temperature=temperature,
                 scoring=scoring,
-                seed=0,
                 track_convergence=True
             )
 
             consensus = consensus_motif(best_motifs, k)
-            consensus_score = score(best_motifs, k, scoring="consensus", pseudo=1)
-            entropy = score(best_motifs, k, scoring="entropy", pseudo=1)
+            consensus_score = score(best_motifs, k, scoring="consensus", pseudo=PSEUDOCOUNT)
+            entropy = score(best_motifs, k, scoring="entropy", pseudo=PSEUDOCOUNT)
 
             results_writer.writerow([
                 temperature,
