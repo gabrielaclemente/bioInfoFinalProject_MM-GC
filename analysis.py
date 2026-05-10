@@ -170,6 +170,140 @@ def plot_convergence_curves():
 
     print(f"Saved convergence plot to {output_path}")
 
+def create_motif_alignment_figure(
+    results_file="motif_search_results.csv",
+    promoter_file="promoter_sequences.csv",
+    output_folder="analysis_outputs"
+):
+    """
+    Create a motif alignment figure for the best motif-search result.
+
+    The best result is selected by lowest consensus_score.
+    The figure shows one motif per promoter and highlights whether each base
+    matches the consensus motif.
+    """
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    results_df = pd.read_csv(results_file)
+    promoters_df = pd.read_csv(promoter_file)
+
+    # Pick best result by consensus score
+    best_row = results_df.loc[results_df["consensus_score"].idxmin()]
+
+    algorithm = best_row["algorithm"]
+    consensus = best_row["consensus_motif"]
+    motifs = str(best_row["motifs"]).split(";")
+
+    # Make sure we only use matching rows
+    n = min(len(motifs), len(promoters_df))
+    motifs = motifs[:n]
+    plot_df = promoters_df.iloc[:n].copy()
+
+    plot_df["motif"] = motifs
+
+    # Keep useful columns
+    if "logFC" in plot_df.columns:
+        plot_df = plot_df.sort_values(by="logFC", ascending=False)
+
+    gene_symbols = plot_df["gene_symbol"].tolist()
+    motifs = plot_df["motif"].tolist()
+
+    if "logFC" in plot_df.columns:
+        logfc_values = plot_df["logFC"].round(2).tolist()
+    else:
+        logfc_values = [""] * len(plot_df)
+
+    k = len(consensus)
+
+    # Create figure
+    fig_height = max(6, 0.35 * len(motifs))
+    fig, ax = plt.subplots(figsize=(11, fig_height))
+    ax.axis("off")
+
+    # Title
+    ax.set_title(
+        f"Candidate Motif Instances Across Promoters\n"
+        f"Best result: {algorithm} | Consensus motif: {consensus}",
+        fontsize=14,
+        weight="bold",
+        pad=20
+    )
+
+    # Layout coordinates
+    x_gene = 0
+    x_logfc = 2.2
+    x_motif_start = 3.2
+
+    y_start = len(motifs) + 1
+
+    # Headers
+    ax.text(x_gene, y_start, "Gene", weight="bold", fontsize=10)
+    ax.text(x_logfc, y_start, "logFC", weight="bold", fontsize=10)
+    ax.text(x_motif_start, y_start, "Motif instance", weight="bold", fontsize=10)
+
+    # Consensus row
+    ax.text(x_gene, y_start - 1, "Consensus", weight="bold", fontsize=10)
+    ax.text(x_logfc, y_start - 1, "", fontsize=10)
+
+    for j, base in enumerate(consensus):
+        ax.text(
+            x_motif_start + j * 0.35,
+            y_start - 1,
+            base,
+            fontsize=11,
+            weight="bold",
+            ha="center",
+            va="center",
+            bbox=dict(boxstyle="square,pad=0.25", facecolor="#dddddd", edgecolor="white")
+        )
+
+    # Motif rows
+    for i, (gene, logfc, motif) in enumerate(zip(gene_symbols, logfc_values, motifs)):
+        y = y_start - 2 - i
+
+        ax.text(x_gene, y, str(gene), fontsize=9, va="center")
+        ax.text(x_logfc, y, str(logfc), fontsize=9, va="center")
+
+        for j, base in enumerate(motif):
+            matches = base == consensus[j]
+
+            facecolor = "#c7e9c0" if matches else "#fcbba1"
+
+            ax.text(
+                x_motif_start + j * 0.35,
+                y,
+                base,
+                fontsize=10,
+                ha="center",
+                va="center",
+                bbox=dict(
+                    boxstyle="square,pad=0.25",
+                    facecolor=facecolor,
+                    edgecolor="white"
+                )
+            )
+
+    # Add legend
+    legend_y = -1
+    ax.text(x_gene, legend_y, "Green = matches consensus", fontsize=9)
+    ax.text(x_gene + 2.5, legend_y, "Red = mismatch", fontsize=9)
+
+    ax.set_xlim(-0.2, x_motif_start + k * 0.45 + 1)
+    ax.set_ylim(-2, y_start + 1)
+
+    output_path = os.path.join(output_folder, "candidate_motif_alignment.png")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"Saved motif alignment figure to {output_path}")
+
+    # Also save the underlying table
+    table_output = os.path.join(output_folder, "candidate_motif_alignment_table.csv")
+    plot_df[["gene_symbol", "logFC", "adj.P.Val", "motif"]].to_csv(table_output, index=False)
+    print(f"Saved motif alignment table to {table_output}")
+
 
 def main():
     results_df = load_results()
@@ -179,6 +313,7 @@ def main():
     plot_consensus_scores(results_df)
     plot_entropy_scores(results_df)
     plot_convergence_curves()
+    create_motif_alignment_figure()
 
     print("\nAnalysis complete.")
 
