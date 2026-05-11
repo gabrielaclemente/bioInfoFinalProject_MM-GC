@@ -1,19 +1,11 @@
-# =============================================================================
-# pTBI Randomized Motif Search Pipeline
-# =============================================================================
-# RESEARCH QUESTION:
+#RESEARCH QUESTION:
 #   Do genes significantly differentially expressed after pTBI in Drosophila
 #   melanogaster share a common regulatory DNA motif, suggesting coordinated
 #   transcriptional control?
-# =============================================================================
- 
-import random
- 
 
-# =============================================================================
+import random
+
 # RANDOMIZED MOTIF SEARCH FUNCTIONS
-# =============================================================================
-# ALGORITHM OVERVIEW:
 #   1. Randomly pick one k-mer from each promoter sequence (random initialization)
 #   2. Build a Profile matrix — for each position, count how often each base appears
 #      (Laplace pseudocounts of +1 are added to avoid zero probabilities)
