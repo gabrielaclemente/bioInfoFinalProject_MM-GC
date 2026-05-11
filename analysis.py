@@ -170,6 +170,48 @@ def plot_convergence_curves():
 
     print(f"Saved convergence plot to {output_path}")
 
+
+def plot_convergence_curves_consensus():
+    """
+    Plot Gibbs convergence curves for consensus-scored runs only.
+
+    This avoids mixing consensus scores and entropy scores, which are on
+    different scales and should not be compared on the same y-axis.
+    """
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+    if not os.path.isdir(CONVERGENCE_FOLDER):
+        print("No convergence_tables folder found.")
+        return
+
+    plt.figure(figsize=(8, 5))
+
+    for filename in os.listdir(CONVERGENCE_FOLDER):
+        if filename.endswith(".csv") and "consensus" in filename:
+            file_path = os.path.join(CONVERGENCE_FOLDER, filename)
+            df = pd.read_csv(file_path)
+
+            # Example filename: gibbs_convergence_T0.5_consensus.csv
+            temperature_label = filename.replace("gibbs_convergence_T", "")
+            temperature_label = temperature_label.replace("_consensus.csv", "")
+
+            label = f"T = {temperature_label}"
+
+            plt.plot(df["iteration"], df["best_score"], label=label)
+
+    plt.xlabel("Iteration")
+    plt.ylabel("Best Consensus Score So Far")
+    plt.title("Gibbs Sampler Convergence by Temperature")
+    plt.legend(title="Temperature", fontsize=8)
+    plt.tight_layout()
+
+    output_path = os.path.join(OUTPUT_FOLDER, "gibbs_consensus_convergence_curves.png")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+    print(f"Saved consensus-only convergence plot to {output_path}")
+
+
 def create_motif_alignment_figure(
     results_file="motif_search_results.csv",
     promoter_file="promoter_sequences.csv",
@@ -314,6 +356,7 @@ def main():
     plot_entropy_scores(results_df)
     plot_convergence_curves()
     create_motif_alignment_figure()
+    plot_convergence_curves_consensus()
 
     print("\nAnalysis complete.")
 
